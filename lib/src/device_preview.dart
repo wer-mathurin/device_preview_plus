@@ -60,7 +60,45 @@ class DevicePreview extends StatefulWidget {
     this.storage,
     this.enabled = true,
     this.backgroundColor,
+    this.hideAppBar = false,
+    this.hideBottomBar = false,
+    this.hideBoxAroundDevice = false,
   });
+
+  /// Creates a [DevicePreview] instance that is optimized for a clean preview,
+  /// with toolbars and extra UI elements hidden by default.
+  ///
+  /// This factory constructor calls the default constructor, setting
+  /// [isToolbarVisible] to `false`, and [hideAppBar], [hideBottomBar],
+  /// and [hideBoxAroundDevice] to `true` to achieve a clean preview.
+  factory DevicePreview.frameOnly({
+    required WidgetBuilder builder,
+    List<Locale>? availableLocales,
+    Color? backgroundColor,
+    DevicePreviewData? data,
+    DeviceInfo? defaultDevice,
+    List<DeviceInfo>? devices,
+    bool enabled = true,
+    DevicePreviewStorage? storage,
+    Key? key,
+  }) {
+    return DevicePreview(
+      key: key,
+      builder: builder,
+      devices: devices,
+      data: data,
+      availableLocales: availableLocales,
+      defaultDevice: defaultDevice,
+      storage: storage,
+      enabled: enabled,
+      backgroundColor: backgroundColor,
+      tools: const [], // Hardcoded for clean preview
+      isToolbarVisible: false, // Hardcoded for clean preview
+      hideAppBar: true, // Hardcoded for clean preview
+      hideBottomBar: true, // Hardcoded for clean preview
+      hideBoxAroundDevice: true, // Hardcoded for clean preview
+    );
+  }
 
   /// If not [enabled], the [child] is used directly.
   final bool enabled;
@@ -101,6 +139,15 @@ class DevicePreview extends StatefulWidget {
   ///
   /// To disable settings persistence use `DevicePreviewStorage.none()`.
   final DevicePreviewStorage? storage;
+
+  /// Hide the app bar of the device preview.
+  final bool? hideAppBar;
+
+  /// Hide the bottom bar of the device preview.
+  final bool? hideBottomBar;
+
+  /// Hide the box around the device preview.
+  final bool? hideBoxAroundDevice;
 
   /// All the default available devices.
   static final List<DeviceInfo> defaultDevices = Devices.all;
@@ -412,16 +459,21 @@ class DevicePreviewWidgetState extends State<DevicePreview> {
       (DevicePreviewStore store) => store.data.isDarkMode,
     );
 
+    final bool shouldHideBoxAroundDevice = widget.hideBoxAroundDevice ?? false;
+
     return Container(
       color: widget.backgroundColor ?? theme.canvasColor,
-      padding: EdgeInsets.only(
-        top: 20 + mediaQuery.viewPadding.top,
-        right: 20 + mediaQuery.viewPadding.right,
-        left: 20 + mediaQuery.viewPadding.left,
-        bottom: 20,
-      ),
+      padding:
+          shouldHideBoxAroundDevice
+              ? EdgeInsets.zero
+              : EdgeInsets.only(
+                top: 20 + mediaQuery.viewPadding.top,
+                right: 20 + mediaQuery.viewPadding.right,
+                left: 20 + mediaQuery.viewPadding.left,
+                bottom: 20,
+              ),
       child: FittedBox(
-        fit: BoxFit.contain,
+        fit: shouldHideBoxAroundDevice ? BoxFit.fitHeight : BoxFit.contain,
         child: RepaintBoundary(
           key: _repaintKey,
           child: DeviceFrame(
@@ -513,15 +565,20 @@ class DevicePreviewWidgetState extends State<DevicePreview> {
               //mediaQuery: DevicePreview._mediaQuery(context),
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: toolbar.scaffoldBackgroundColor,
+                  color:
+                      !(widget.hideBoxAroundDevice ?? false)
+                          ? toolbar.scaffoldBackgroundColor
+                          : null,
                 ),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final mediaQuery = MediaQuery.of(context);
                     final isSmall = constraints.maxWidth < 700;
+                    final bool shouldHideBoxAroundDevice =
+                        widget.hideBoxAroundDevice ?? false;
 
-                    final borderRadius =
-                        isToolbarVisible
+                    final BorderRadius borderRadius =
+                        isToolbarVisible && !shouldHideBoxAroundDevice
                             ? BorderRadius.only(
                               topRight:
                                   isSmall
@@ -534,17 +591,47 @@ class DevicePreviewWidgetState extends State<DevicePreview> {
                                       : Radius.zero,
                             )
                             : BorderRadius.zero;
+
+                    // Calculate offsets based on whether the respective toolbars will actually be visible.
                     final double rightPanelOffset =
                         !isSmall
                             ? (isEnabled
                                 ? ToolPanel.panelWidth - 10
                                 : (64 + mediaQuery.padding.right))
                             : 0;
+
+                    // Visibility for the small layout's bottom bar part (assuming it's part of DevicePreviewSmallLayout)
+                    // For now, if shouldHideBottomBar is true, we adjust the bottomPanelOffset.
+                    final bool shouldHideAppBar = widget.hideAppBar ?? false;
+                    final bool shouldHideBottomBar =
+                        widget.hideBottomBar ?? false;
+
+                    // Determine if the small layout's toolbar should be rendered at all.
+                    // It's rendered if the global toolbar is visible and it's a small layout.
+                    // The SmallLayout itself will hide its content based on its own hideAppBar/hideBottomBar props.
+                    final bool renderSmallLayout = isToolbarVisible && isSmall;
+
+                    // Determine if the large layout's toolbar should be rendered.
+                    final bool renderLargeLayout =
+                        isToolbarVisible && !isSmall && !shouldHideAppBar;
+
+                    // Small layout's toolbar (which is at the bottom) is hidden if either its hideAppBar or hideBottomBar is true.
+                    final bool isSmallLayoutToolbarHidden =
+                        shouldHideAppBar || shouldHideBottomBar;
                     final double bottomPanelOffset =
-                        isSmall ? mediaQuery.padding.bottom + 52 : 0;
+                        renderSmallLayout &&
+                                !isSmallLayoutToolbarHidden // only apply if small layout toolbar is rendered and not internally hidden
+                            ? mediaQuery.padding.bottom + 52
+                            : 0;
+
+                    // Determine if any part of the toolbar UI is effectively visible for positioning the preview
+                    final bool anyToolbarUiVisible =
+                        (renderSmallLayout && !isSmallLayoutToolbarHidden) ||
+                        renderLargeLayout;
+
                     return Stack(
                       children: <Widget>[
-                        if (isToolbarVisible && isSmall)
+                        if (renderSmallLayout)
                           Positioned(
                             key: const Key('Small'),
                             bottom: 0,
@@ -558,9 +645,11 @@ class DevicePreviewWidgetState extends State<DevicePreview> {
                                   (isVisible) => setState(() {
                                     _isToolPanelPopOverOpen = isVisible;
                                   }),
+                              hideAppBar: shouldHideAppBar,
+                              hideBottomBar: shouldHideBottomBar,
                             ),
                           ),
-                        if (isToolbarVisible && !isSmall)
+                        if (renderLargeLayout)
                           Positioned.fill(
                             key: const Key('Large'),
                             child: DervicePreviewLargeLayout(
@@ -571,24 +660,29 @@ class DevicePreviewWidgetState extends State<DevicePreview> {
                           key: const Key('preview'),
                           duration: const Duration(milliseconds: 200),
                           left: 0,
-                          right: isToolbarVisible ? rightPanelOffset : 0,
+                          right: anyToolbarUiVisible ? rightPanelOffset : 0,
                           top: 0,
-                          bottom: isToolbarVisible ? bottomPanelOffset : 0,
+                          bottom: anyToolbarUiVisible ? bottomPanelOffset : 0,
                           child: Theme(
                             data: background,
                             child: Container(
-                              decoration: BoxDecoration(
-                                boxShadow: const [
-                                  BoxShadow(
-                                    blurRadius: 20,
-                                    color: Color(0xAA000000),
-                                  ),
-                                ],
-                                borderRadius: borderRadius,
-                                color: background.scaffoldBackgroundColor,
-                              ),
+                              decoration:
+                                  shouldHideBoxAroundDevice
+                                      ? null
+                                      : BoxDecoration(
+                                        boxShadow: const [
+                                          BoxShadow(
+                                            blurRadius: 20,
+                                            color: Color(0xAA000000),
+                                          ),
+                                        ],
+                                        borderRadius: borderRadius,
+                                        color:
+                                            background.scaffoldBackgroundColor,
+                                      ),
                               child: ClipRRect(
-                                borderRadius: borderRadius,
+                                borderRadius:
+                                    borderRadius, // borderRadius is already Zero if shouldHideBoxAroundDevice is true
                                 child:
                                     isEnabled
                                         ? Builder(builder: _buildPreview)

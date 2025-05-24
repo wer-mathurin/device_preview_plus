@@ -14,6 +14,8 @@ class DevicePreviewSmallLayout extends StatelessWidget {
     required this.scaffoldKey,
     required this.onMenuVisibleChanged,
     required this.slivers,
+    this.hideAppBar = false,
+    this.hideBottomBar = false,
   });
 
   /// The maximum modal menu height.
@@ -30,8 +32,21 @@ class DevicePreviewSmallLayout extends StatelessWidget {
   /// They must be [Sliver]s.
   final List<Widget> slivers;
 
+  /// Whether to hide the app bar portion of the layout.
+  final bool? hideAppBar;
+
+  /// Whether to hide the bottom bar portion of the layout.
+  final bool? hideBottomBar;
+
   @override
   Widget build(BuildContext context) {
+    final bool shouldHideAppBar = hideAppBar ?? false;
+    final bool shouldHideBottomBar = hideBottomBar ?? false;
+
+    if (shouldHideAppBar || shouldHideBottomBar) {
+      return const SizedBox.shrink();
+    }
+
     final toolbarTheme = context.select(
       (DevicePreviewStore store) => store.settings.toolbarTheme,
     );
