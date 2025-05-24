@@ -71,32 +71,29 @@ class DevicePreview extends StatefulWidget {
   /// This factory constructor calls the default constructor, setting
   /// [isToolbarVisible] to `false`, and [hideAppBar], [hideBottomBar],
   /// and [hideBoxAroundDevice] to `true` to achieve a clean preview.
-  factory DevicePreview.builder({
-    Key? key,
+  factory DevicePreview.frameOnly({
     required WidgetBuilder builder,
-    List<DeviceInfo>? devices,
-    DevicePreviewData? data,
     List<Locale>? availableLocales,
-    DeviceInfo? defaultDevice,
-    List<Widget> tools = defaultTools,
-    DevicePreviewStorage? storage,
-    bool enabled = true,
     Color? backgroundColor,
-    // Note: isToolbarVisible, hideAppBar, hideBottomBar, hideBoxAroundDevice
-    // are not accepted as parameters here. They are intentionally overridden.
+    DevicePreviewData? data,
+    DeviceInfo? defaultDevice,
+    List<DeviceInfo>? devices,
+    bool enabled = true,
+    DevicePreviewStorage? storage,
+    Key? key,
   }) {
     return DevicePreview(
       key: key,
       builder: builder,
       devices: devices,
       data: data,
-      isToolbarVisible: false, // Hardcoded for clean preview
       availableLocales: availableLocales,
       defaultDevice: defaultDevice,
-      tools: tools,
       storage: storage,
       enabled: enabled,
       backgroundColor: backgroundColor,
+      tools: const [], // Hardcoded for clean preview
+      isToolbarVisible: false, // Hardcoded for clean preview
       hideAppBar: true, // Hardcoded for clean preview
       hideBottomBar: true, // Hardcoded for clean preview
       hideBoxAroundDevice: true, // Hardcoded for clean preview
