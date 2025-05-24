@@ -476,7 +476,7 @@ class DevicePreviewWidgetState extends State<DevicePreview> {
                 bottom: 20,
               ),
       child: FittedBox(
-        fit: BoxFit.contain,
+        fit: shouldHideBoxAroundDevice ? BoxFit.fitHeight : BoxFit.contain,
         child: RepaintBoundary(
           key: _repaintKey,
           child: DeviceFrame(
@@ -568,7 +568,10 @@ class DevicePreviewWidgetState extends State<DevicePreview> {
               //mediaQuery: DevicePreview._mediaQuery(context),
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: toolbar.scaffoldBackgroundColor,
+                  color:
+                      !(widget.hideBoxAroundDevice ?? false)
+                          ? toolbar.scaffoldBackgroundColor
+                          : null,
                 ),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
